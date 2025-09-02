@@ -10,6 +10,31 @@ Make sure you read the game instructions carefully, and always follow the requir
 
 In each turn, give only your guess inside <guess>...</guess> tags."""
 
+GAME_PROMPT = """You are playing a word similarity guessing game.
+
+Rules:
+- The game is in the language: {LANGUAGE}.
+- A secret target word has been chosen by the system.
+- Your task is to guess this word.
+- After each guess, you will receive:
+  - A similarity score (0 to 1) between your guess and the target word.
+  - A list of the top 10 closest words (with their similarity scores) you already gave.
+- You must use this feedback to make your next guess, refining step by step, until you discover the target word.
+- Only reply with one single word per turn, in the correct language inside <guess>...</guess> tags.
+"""
+
+TURN_PROMPT = """Your last guess was: "{GUESS}"
+Similarity score with the target word: {SCORE}
+
+Here are the top 10 closest words to your guess:
+{WORD1}: {SIM1}
+{WORD2}: {SIM2}
+...
+{WORD10}: {SIM10}
+
+Based on this feedback, provide your next single-word guess in {LANGUAGE}.
+"""
+
 def get_random_word(lang="en", n=5000):
     words = top_n_list(lang, n)
     return random.choice(words)
@@ -25,6 +50,14 @@ def get_similarity(model,ground_truth,guess) :
     return similarity
 
 class SemantixEnv(vf.MultiTurnEnv):
+    """
+    Objective :
+    For X turn :
+        - The LLM give a word
+        - We check if it is the current one (with SequenceMatch)
+            - If yes : reward it with the format and the number of turn
+            - If no : answer with the similarity score (+ the top 10 words previously sent for long term memory?)
+    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
