@@ -51,10 +51,6 @@ def get_random_word(lang="en", n=5000):
     words = top_n_list(lang, n)
     return random.choice(words)
 
-def check_answer(parser, completion, answer, **kwargs) -> bool: # TODO
-    guess = parser.parse_answer(completion)
-    return guess == "[" + answer + "]"
-
 def create_weighted_rewards(): # TODO
     """
     Reward could be something like :
@@ -101,15 +97,16 @@ class SemantixEnv(vf.MultiTurnEnv):
         if assistant_count >= num_turns :
             return True
         else :
-            return check_answer(parser, completion, answer) # TODO
+            assistant_msgs = [m["content"] for m in messages if m["role"] == "assistant"]
+            guess = self.parser.parse_answer(assistant_msgs[state["info"]["turn_num"] - 1])
+            return guess == state["info"]["ground_truths"]
 
     def env_response(self, messages: Messages, state: State, **kwargs) -> Tuple[Messages, State]:
         """
         Env response is basically TURN_PROMPT completed with the correct values
         """
         assistant_msgs = [m["content"] for m in messages if m["role"] == "assistant"]
-        parser = vf.XMLParser(fields=["guess"], answer_field="guess")
-        guess = parser.parse_answer(assistant_msgs[state["info"]["turn_num"] - 1])
+        guess = self.parser.parse_answer(assistant_msgs[state["info"]["turn_num"] - 1])
         similarity = get_similarity(self.similarity_model,state["ground_truth"],guess)
         
         state["info"]["turn_num"] += 1
@@ -138,6 +135,6 @@ def load_environment(model_name = "paraphrase-multilingual-MiniLM-L12-v2",
     parser = vf.XMLParser(fields=["guess"], answer_field="guess")
     rubric = vf.Rubric(parser=parser,funcs=[create_weighted_rewards()], weights=[1.0])
     
-    env_instance = SemantixEnv(dataset=words_dataset, rubric=rubric, max_turns=max_turns, system_prompt=system_prompt, similarity_model=similarity_model)
+    env_instance = SemantixEnv(dataset=words_dataset, rubric=rubric, parser=parser,max_turns=max_turns, system_prompt=system_prompt, similarity_model=similarity_model)
     
     return env_instance
