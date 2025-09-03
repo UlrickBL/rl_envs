@@ -4,6 +4,9 @@ from wordfreq import top_n_list
 from sentence_transformers import SentenceTransformer, util
 from verifiers.types import Messages, State
 from typing import List, Tuple
+import math
+
+ALPHA = 0.5
 
 NOTHINK_GUESS_SYSTEM_PROMPT = """You are a competitive game player. \
 Make sure you read the game instructions carefully, and always follow the required format.
@@ -59,11 +62,15 @@ def create_weighted_rewards(): # TODO
     weight it with the max reward available
     """
     def weighted_reward(completion, state, **kwargs):
-        actual_turns = state["info"]["num_turns"]
+        actual_turns = state["info"]["turn_num"]
         best_similarity = max(state["info"]["similarities"])
-        return 
-
-    return weighted_reward
+        base_reward = 0
+        if state["info"]["guesses"][-1] == state["ground_truth"]
+            base_reward = 2
+        else :
+            base_reward = best_similarity
+        return base_reward * math.exp(-ALPHA*actual_turns)
+    return weighted_reward/2
 
 
 def get_similarity(model,ground_truth,guess) :
