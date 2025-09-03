@@ -65,7 +65,7 @@ def create_weighted_rewards(): # TODO
         actual_turns = state["info"]["turn_num"]
         best_similarity = max(state["info"]["similarities"])
         base_reward = 0
-        if state["info"]["guesses"][-1] == state["ground_truth"]
+        if state["info"]["guesses"][-1] == state["ground_truth"] :
             base_reward = 2
         else :
             base_reward = best_similarity
