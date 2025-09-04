@@ -1,2 +1,5 @@
 *.png
 *.deb
+rebus_french_rl
+rebus_images
+*.lock
