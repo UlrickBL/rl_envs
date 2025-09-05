@@ -101,7 +101,7 @@ class SemantixEnv(vf.MultiTurnEnv):
         """
         assert isinstance(messages, list)
         assistant_count = len([m for m in messages if m["role"] == "assistant"])
-        num_turns = state["info"]["num_turns"]
+        num_turns = state["info"]["turn_num"]
         
         if assistant_count >= num_turns :
             return True
