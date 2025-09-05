@@ -16,7 +16,7 @@ args.max_steps = 100
 args.eval_strategy = "steps"
 args.eval_steps = 2
 args.max_tokens = 1024
-args.vllm_server_port= 4227
+args.vllm_server_port= 8000
 
 trainer = vf.GRPOTrainer(
     model=model,
