@@ -5,4 +5,6 @@ uv init
 uv add 'verifiers[all]' && uv pip install flash-attn --no-build-isolation
 
 
-uv run vf-install semantix -p environments
+uv run vf-install semantic -p environments
+
+source .venv/bin/activate

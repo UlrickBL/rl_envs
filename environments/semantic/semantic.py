@@ -5,6 +5,7 @@ from sentence_transformers import SentenceTransformer, util
 from verifiers.types import Messages, State
 from typing import List, Tuple
 import math
+from datasets import Dataset, load_dataset
 
 ALPHA = 0.5
 
@@ -49,6 +50,7 @@ def prepare_dataset(dataset_len,lang) :
                 },
             }
         )
+    return  Dataset.from_list(data)
 
 def get_random_word(lang="en", n=5000):
     words = top_n_list(lang, n)
@@ -69,8 +71,8 @@ def create_weighted_rewards(): # TODO
             base_reward = 2
         else :
             base_reward = best_similarity
-        return base_reward * math.exp(-ALPHA*actual_turns)
-    return weighted_reward/2
+        return base_reward * math.exp(-ALPHA*actual_turns)/2
+    return weighted_reward
 
 
 def get_similarity(model,ground_truth,guess) :
@@ -87,9 +89,9 @@ class SemantixEnv(vf.MultiTurnEnv):
             - If yes : reward it with the format and the number of turn
             - If no : answer with the similarity score (+ the top 10 words previously sent for long term memory?)
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self,similarity_model, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.similarity_model = args.similarity_model
+        self.similarity_model = similarity_model
 
     def is_completed(self, messages: Messages, state: State, **kwargs) -> bool:
         """
