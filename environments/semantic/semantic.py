@@ -8,6 +8,7 @@ import math
 from datasets import Dataset, load_dataset
 
 ALPHA = 0.5
+MAX_TURN = 2
 
 NOTHINK_GUESS_SYSTEM_PROMPT = """You are a competitive game player. \
 Make sure you read the game instructions carefully, and always follow the required format.
@@ -25,6 +26,8 @@ Rules:
   - A list of the top 10 closest words (with their similarity scores) you already gave.
 - You must use this feedback to make your next guess, refining step by step, until you discover the target word.
 - Only reply with one single word per turn, in the correct language inside <guess>...</guess> tags.
+
+Start by guessing a firt word :
 """
 
 TURN_PROMPT = """Your last guess was: "{GUESS}"
@@ -47,6 +50,7 @@ def prepare_dataset(dataset_len,lang) :
                     "turn_num": 0,
                     "guesses": [],
                     "similarities": [],
+                    "language" : lang
                 },
             }
         )
@@ -67,7 +71,7 @@ def create_weighted_rewards(): # TODO
         actual_turns = state["info"]["turn_num"]
         best_similarity = max(state["info"]["similarities"])
         base_reward = 0
-        if state["info"]["guesses"][-1] == state["ground_truth"] :
+        if state["info"]["guesses"][-1] == state["info"]["ground_truths"] :
             base_reward = 2
         else :
             base_reward = best_similarity
@@ -103,12 +107,15 @@ class SemantixEnv(vf.MultiTurnEnv):
         assistant_count = len([m for m in messages if m["role"] == "assistant"])
         num_turns = state["info"]["turn_num"]
         
-        if assistant_count >= num_turns :
+        if assistant_count >= MAX_TURN :
             return True
         else :
             assistant_msgs = [m["content"] for m in messages if m["role"] == "assistant"]
-            guess = self.parser.parse_answer(assistant_msgs[state["info"]["turn_num"] - 1])
-            return guess == state["info"]["ground_truths"]
+            if state["info"]["turn_num"] - 1 > 0 :
+                guess = self.parser.parse_answer(assistant_msgs[state["info"]["turn_num"] - 1])
+                return guess == state["info"]["ground_truths"]
+            else :
+                return False
 
     def env_response(self, messages: Messages, state: State, **kwargs) -> Tuple[Messages, State]:
         """
@@ -116,17 +123,19 @@ class SemantixEnv(vf.MultiTurnEnv):
         """
         assistant_msgs = [m["content"] for m in messages if m["role"] == "assistant"]
         guess = self.parser.parse_answer(assistant_msgs[state["info"]["turn_num"] - 1])
-        similarity = get_similarity(self.similarity_model,state["ground_truth"],guess)
+        similarity = get_similarity(self.similarity_model,state["info"]["ground_truths"],guess)
+        print(state["info"]["ground_truths"])
+        print("env response guess,gt,sim",list(zip(state["info"]["guesses"],state["info"]["ground_truths"],state["info"]["similarities"])))
         
         state["info"]["turn_num"] += 1
         state["info"]["guesses"].append(guess)
         state["info"]["similarities"].append(similarity)
         
-        pairs = list(zip(state["guesses"], state["similarities"]))
+        pairs = list(zip(state["info"]["guesses"], state["info"]["similarities"]))
         top_pairs = sorted(pairs, key=lambda x: x[1], reverse=True)[:10]
         top_words_str = "\n".join([f"{w}: {s:.2f}" for w, s in top_pairs])
         
-        return [{"role": "user", "content": TURN_PROMPT.format(GUESS=guess,SCORE=similarity,TOP_WORDS=top_words_str,LANGUAGE=state["language"])}], state
+        return [{"role": "user", "content": TURN_PROMPT.format(GUESS=guess,SCORE=similarity,TOP_WORDS=top_words_str,LANGUAGE=state["info"]["language"])}], state
         
 def load_environment(model_name = "paraphrase-multilingual-MiniLM-L12-v2",
                      lang="en",
