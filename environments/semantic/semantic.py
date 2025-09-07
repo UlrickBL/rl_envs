@@ -8,9 +8,9 @@ import math
 from datasets import Dataset, load_dataset
 
 ALPHA = 0.5
-MAX_TURN = 2
+MAX_TURN = 15
 
-NOTHINK_GUESS_SYSTEM_PROMPT = """You are a competitive game player. \
+NOTHINK_GUESS_SYSTEM_PROMPT = """You are a competitive game player playing with a game master. \
 Make sure you read the game instructions carefully, and always follow the required format.
 
 In each turn, give only your guess inside <guess>...</guess> tags."""
@@ -21,13 +21,14 @@ Rules:
 - The game is in the language: {LANGUAGE}.
 - A secret target word has been chosen by the system.
 - Your task is to guess this word.
-- After each guess, you will receive:
+- After each guess, you will receive from the game master:
   - A similarity score (0 to 1) between your guess and the target word.
   - A list of the top 10 closest words (with their similarity scores) you already gave.
 - You must use this feedback to make your next guess, refining step by step, until you discover the target word.
-- Only reply with one single word per turn, in the correct language inside <guess>...</guess> tags.
+- You can think each attempt but finish with a SINGLE GUESS PER attempt, in the correct language inside <guess>...</guess> tags (and wait for the game master to give you the similarity before).
+- Give on word per guess and wait for the game master feedback.
 
-Start by guessing a firt word :
+Start by guessing a firt word quickly:
 """
 
 TURN_PROMPT = """Your last guess was: "{GUESS}"
@@ -44,7 +45,7 @@ def prepare_dataset(dataset_len,lang) :
     for i in range(dataset_len) :
         data.append(
             {
-                "prompt": [{"role": "user", "content": GAME_PROMPT.format(LANGUAGE=lang)}],
+                "prompt": [{"role": "system", "content": NOTHINK_GUESS_SYSTEM_PROMPT},{"role": "user", "content": GAME_PROMPT.format(LANGUAGE=lang)}],
                 "info": {
                     "ground_truths": get_random_word(lang=lang),
                     "turn_num": 0,
@@ -69,12 +70,15 @@ def create_weighted_rewards(): # TODO
     """
     def weighted_reward(completion, state, **kwargs):
         actual_turns = state["info"]["turn_num"]
+        print("reward called with turn:", state["info"].get("turn_num"))
+        print("reward called with ground_truths:", state["info"].get("ground_truths"))
         best_similarity = max(state["info"]["similarities"])
         base_reward = 0
         if state["info"]["guesses"][-1] == state["info"]["ground_truths"] :
             base_reward = 2
         else :
             base_reward = best_similarity
+        print("reward", base_reward)
         return base_reward * math.exp(-ALPHA*actual_turns)/2
     return weighted_reward
 
@@ -124,8 +128,10 @@ class SemantixEnv(vf.MultiTurnEnv):
         assistant_msgs = [m["content"] for m in messages if m["role"] == "assistant"]
         guess = self.parser.parse_answer(assistant_msgs[state["info"]["turn_num"] - 1])
         similarity = get_similarity(self.similarity_model,state["info"]["ground_truths"],guess)
-        print(state["info"]["ground_truths"])
-        print("env response guess,gt,sim",list(zip(state["info"]["guesses"],state["info"]["ground_truths"],state["info"]["similarities"])))
+        print("gt",state["info"]["ground_truths"])
+        print("guess",state["info"]["guesses"])
+        print("similarities",state["info"]["similarities"])
+        print("env response guess,gt,sim",list(zip(state["info"]["guesses"],[state["info"]["ground_truths"]],state["info"]["similarities"])))
         
         state["info"]["turn_num"] += 1
         state["info"]["guesses"].append(guess)
