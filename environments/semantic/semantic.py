@@ -63,22 +63,18 @@ def get_random_word(lang="en", n=5000):
 
 def create_weighted_rewards(): # TODO
     """
-    Reward could be something like :
     base_reward = 0 if format issue, similarity if not reached (so between 0 and 1) and 2 if proper word found
     reward=base_reward * exp(-α*turn)
     weight it with the max reward available
     """
     def weighted_reward(completion, state, **kwargs):
         actual_turns = state["info"]["turn_num"]
-        print("reward called with turn:", state["info"].get("turn_num"))
-        print("reward called with ground_truths:", state["info"].get("ground_truths"))
         best_similarity = max(state["info"]["similarities"])
         base_reward = 0
         if state["info"]["guesses"][-1] == state["info"]["ground_truths"] :
             base_reward = 2
         else :
             base_reward = best_similarity
-        print("reward", base_reward)
         return base_reward * math.exp(-ALPHA*actual_turns)/2
     return weighted_reward
 
@@ -128,10 +124,6 @@ class SemantixEnv(vf.MultiTurnEnv):
         assistant_msgs = [m["content"] for m in messages if m["role"] == "assistant"]
         guess = self.parser.parse_answer(assistant_msgs[state["info"]["turn_num"] - 1])
         similarity = get_similarity(self.similarity_model,state["info"]["ground_truths"],guess)
-        print("gt",state["info"]["ground_truths"])
-        print("guess",state["info"]["guesses"])
-        print("similarities",state["info"]["similarities"])
-        print("env response guess,gt,sim",list(zip(state["info"]["guesses"],[state["info"]["ground_truths"]],state["info"]["similarities"])))
         
         state["info"]["turn_num"] += 1
         state["info"]["guesses"].append(guess)
