@@ -26,6 +26,7 @@ trl vllm-serve --model Qwen/Qwen3-0.6B --max-model-len 5000 --gpu_memory_utiliza
 # Install env from code
 
 uv run vf-install semantic -p environments
+uv run vf-install rebus_vl_thinking -p environments
 
 # Command to run training once everything is installed 
 
@@ -48,6 +49,9 @@ NCCL_DEBUG=INFO NCCL_P2P_DISABLE=1 CUDA_VISIBLE_DEVICES=0 vf-vllm --model Qwen/Q
 
 # Qwen 3 VLLM
 NCCL_DEBUG=INFO NCCL_P2P_DISABLE=1 CUDA_VISIBLE_DEVICES=0 trl vllm-serve --model Qwen/Qwen3-0.6B --max-model-len 5000 --gpu_memory_utilization 0.5
+
+# Qwen 2.5 VL VLLM
+NCCL_DEBUG=INFO NCCL_P2P_DISABLE=1 CUDA_VISIBLE_DEVICES=0 trl vllm-serve --model Qwen/Qwen2.5-VL-3B-Instruct --max-model-len 5000 --gpu_memory_utilization 0.5
 
 # GRPO training semantic
 CUDA_VISIBLE_DEVICES=1 python src/train_semantic.py
