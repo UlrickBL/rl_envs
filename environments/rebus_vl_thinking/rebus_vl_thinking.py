@@ -60,12 +60,12 @@ class RebusEnv(vf.SingleTurnEnv):
             })
             return messages
         
-        return dataset.map(
-                lambda x: {
-                    "prompt": format_prompt_fn(x[image_key]),
-                    "answer": x[answer_key],
-                }
-            )
+        def preprocess_fn(example):
+            return {
+                "prompt": format_prompt_fn(example["image"]),
+                "answer": example["word"],
+            }
+        return dataset.map(preprocess_fn)
 
 def reward_answer(parser, completion, answer):
     response = parser.parse_answer(completion) or ''
