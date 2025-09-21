@@ -71,11 +71,11 @@ def reward_answer(parser, completion, answer):
     response = parser.parse_answer(completion) or ''
     return response == answer
 
-def load_environment(num_examples=None, **kwargs) -> vf.Environment:
+def load_environment(num_examples=None,split="train", **kwargs) -> vf.Environment:
     '''
     Loads Rebus Environment.
     '''
-    dataset = load_dataset("UlrickBL/rebus_french_rl")
+    dataset = load_dataset("UlrickBL/rebus_french_rl",split=split)
     parser = vf.XMLParser(fields=["guess"], answer_field="guess")
     rubric = vf.Rubric(
         funcs=[reward_answer, parser.get_format_reward_func()],
