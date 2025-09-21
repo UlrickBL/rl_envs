@@ -35,43 +35,42 @@ class RebusEnv(vf.SingleTurnEnv):
     Environment for Rebus Guessing
     """
     def format_dataset(
-            self,
-            dataset: Dataset,
-            system_prompt: str | None = None,
-            answer_key: str = "word",
-            image_key: str = "image"
-        ) -> Dataset:
-
-        def image_to_base64(image: Image, format='png'):
-            buffered = BytesIO()
-            image.save(buffered, format=format)
-            return base64.b64encode(buffered.getvalue()).decode('utf-8')
-        
-        def format_prompt_fn(image : Image) -> list[ChatMessage]:
+        self,
+        dataset: Dataset,
+        system_prompt: str | None = None,
+        answer_key: str = "word",
+        image_key: str = "image",
+    ) -> Dataset:
+        def format_prompt_fn() -> list[dict]:
             messages = []
             if system_prompt:
-                messages.append({"role": "system", "content": [{"type": "text", "text": SYSTEM_PROMPT}]})
+                messages.append({
+                    "role": "system",
+                    "content": [{"type": "text", "text": system_prompt}],
+                })
             messages.append({
                 "role": "user",
                 "content": [
+                    {"type": "image"},
                     {"type": "text", "text": GAME_PROMPT},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_to_base64(image)}"}}
-                ]
+                ],
             })
             return messages
         
         def preprocess_fn(example):
             return {
-                "prompt": format_prompt_fn(example["image"]),
+                "prompt": format_prompt_fn(),
                 "answer": example["word"],
+                "image": example["image"],
             }
+        
         return dataset.map(preprocess_fn)
 
 def reward_answer(parser, completion, answer):
     response = parser.parse_answer(completion) or ''
     return response == answer
 
-def load_environment(num_examples=None,split="train", **kwargs) -> vf.Environment:
+def load_environment(split="train", **kwargs) -> vf.Environment:
     '''
     Loads Rebus Environment.
     '''
