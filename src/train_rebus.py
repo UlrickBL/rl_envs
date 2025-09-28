@@ -2,7 +2,7 @@ import verifiers as vf
 from transformers import Qwen2_5_VLForConditionalGeneration, AutoTokenizer, AutoProcessor
 
 print("running verifier")
-model_name = "Qwen/Qwen2.5-VL-3B-Instruct"
+model_name = "Qwen/Qwen2.5-VL-7B-Instruct"
 model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
     model_name, torch_dtype="auto", device_map="auto"
 )
