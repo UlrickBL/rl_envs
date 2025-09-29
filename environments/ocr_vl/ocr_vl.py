@@ -23,7 +23,7 @@ class OCRVLEnv(vf.SingleTurnEnv):
             self,
             dataset: Dataset,
             system_prompt: str | None = None,
-            answer_key: str = "transcription",
+            answer_key: str = "text",
             image_key: str = "image"
         ) -> Dataset:
         
@@ -46,10 +46,9 @@ class OCRVLEnv(vf.SingleTurnEnv):
         def preprocess_fn(example):
             return {
                 "prompt": format_prompt_fn(),
-                "answer": example["word"],
+                "answer": example["text"],
                 "image": example["image"],
             }
-        
         return dataset.map(preprocess_fn)
 
 def reward_answer(parser, completion, answer):
@@ -60,7 +59,7 @@ def reward_answer(parser, completion, answer):
     """
     response = parser.parse_answer(completion) or ''
 
-    num_punct_chars = sum(c.isdigit() or re.match(r"\W", c) for c in answer)
+    num_punct_chars = sum(c.isdigit() or bool(re.match(r"\W", c)) for c in answer)
     ratio = num_punct_chars / max(1, len(answer))
 
     if ratio > 0.5:  
@@ -70,11 +69,16 @@ def reward_answer(parser, completion, answer):
     reward = 1 - score  
     return reward
 
-def load_environment(num_examples=None,split="train[:1000]", **kwargs) -> vf.Environment:
+def load_environment(num_examples=None,split="train",lang=None,size=1000, **kwargs) -> vf.Environment:
     '''
     Loads OCR VL Environment.
     '''
     dataset = load_dataset("deepcopy/webui_multilingual_ocr",split=split)
+    if lang :
+        dataset = dataset.filter(lambda x: x["lang"] == lang)
+    if size :
+        dataset = dataset.select(range(1000))
+    print(dataset)
     parser = vf.XMLParser(fields=["ocr"], answer_field="ocr")
     rubric = vf.Rubric(
         funcs=[reward_answer, parser.get_format_reward_func()],
