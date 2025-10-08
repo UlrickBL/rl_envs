@@ -16,18 +16,18 @@ vf_env = vf.load_environment(env_id="ocr-vl",lang="hi")
 print("env loaded")
 
 args = vf.grpo_defaults(run_name="ocr-vl")
-args.per_device_train_batch_size = 2
+args.per_device_train_batch_size = 8
 args.num_generations = 16
-args.gradient_accumulation_steps = 8
+args.gradient_accumulation_steps = 2
 args.max_steps = 1000
 args.eval_strategy = "steps"
 args.eval_steps = 2
 args.max_tokens = 1024
 args.vllm_server_port= 8000
 args.fp16 = True
-args.temperature = 1.2
+args.temperature = 0.4
 args.learning_rate = 1e-5
-args.lr_scheduler_type = "constant_with_warmup"
+args.lr_scheduler_type = "cosine"
 args.warmup_steps = 10  
 
 trainer = vf.GRPOTrainer(
