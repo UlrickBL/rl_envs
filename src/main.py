@@ -1,5 +1,5 @@
 def main():
-    print("Hello from semantix!")
+    print("Hello from rl env !")
 
 
 if __name__ == "__main__":

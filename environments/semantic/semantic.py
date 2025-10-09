@@ -8,7 +8,7 @@ import math
 from datasets import Dataset, load_dataset
 
 ALPHA = 0.5
-MAX_TURN = 15
+MAX_TURN = 20
 
 NOTHINK_GUESS_SYSTEM_PROMPT = """You are a competitive game player playing with a game master. \
 Make sure you read the game instructions carefully, and always follow the required format.
@@ -37,7 +37,7 @@ Similarity score with the target word: {SCORE}
 Here are the top 10 closest words to your guess:
 {TOP_WORDS}
 
-Based on this feedback, provide your next single-word guess in {LANGUAGE}.
+Based on this feedback, provide your next single-word guess in {LANGUAGE} inside <guess>...</guess> tags.
 """
 
 def prepare_dataset(dataset_len,lang) :
@@ -61,27 +61,52 @@ def get_random_word(lang="en", n=5000):
     words = top_n_list(lang, n)
     return random.choice(words)
 
-def create_weighted_rewards(): # TODO
+def create_weighted_rewards(alpha=0.1):
     """
-    base_reward = 0 if format issue, similarity if not reached (so between 0 and 1) and 2 if proper word found
-    reward=base_reward * exp(-α*turn)
-    weight it with the max reward available
+    base_reward = 0 if format issue,
+                  similarity if not reached (between 0 and 1),
+                  2 if proper word found
+    reward = base_reward * exp(-α * turn)
+    +1 if all guesses are unique
+    -1/turn for each repetition of the last guess
     """
+    import math
+
     def weighted_reward(completion, state, **kwargs):
         actual_turns = state["info"]["turn_num"]
+        guesses = state["info"]["guesses"]
+        last_guess = guesses[-1]
+        ground_truth = state["info"]["ground_truths"]
         best_similarity = max(state["info"]["similarities"])
-        base_reward = 0
-        if state["info"]["guesses"][-1] == state["info"]["ground_truths"] :
+
+        # ---- base reward ----
+        if last_guess == ground_truth:
             base_reward = 2
-        else :
+        else:
             base_reward = best_similarity
-        return base_reward * math.exp(-ALPHA*actual_turns)/2
+
+        # ---- uniqueness bonus ----
+        if len(set(guesses)) == len(guesses):  # all unique
+            base_reward += 1
+
+        # ---- repetition penalty ----
+        repetitions = guesses[:-1].count(last_guess)
+        if repetitions > 0:
+            base_reward -= repetitions * (1 / actual_turns)
+
+        # ---- decay with turns ----
+        reward = base_reward * math.exp(-alpha * actual_turns)
+
+        return reward
+
     return weighted_reward
 
 
 def get_similarity(model,ground_truth,guess) :
     embeddings = model.encode([ground_truth, guess], convert_to_tensor=True)
     similarity = util.cos_sim(embeddings[0], embeddings[1]).item()
+    if guess == "None" :
+        similarity = 0
     return similarity
 
 class SemantixEnv(vf.MultiTurnEnv):
