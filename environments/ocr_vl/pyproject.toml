@@ -1,0 +1,15 @@
+[project]
+name = "ocr-vl"
+description = "Your environment description here"
+tags = ["placeholder-tag", "train", "eval"]
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "verifiers>=0.1.4",
+    "evaluate==0.4.6",
+    "jiwer==4.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
