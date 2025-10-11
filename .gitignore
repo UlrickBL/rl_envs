@@ -1,6 +1,8 @@
 *.png
 *.deb
 rebus_french_rl
+rebus_english_rl
+build
 rebus_images
 *.lock
 __pycache__
