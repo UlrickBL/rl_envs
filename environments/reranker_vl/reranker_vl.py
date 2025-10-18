@@ -3,6 +3,7 @@ import numpy as np
 from PIL import Image
 from datasets import Dataset, load_dataset
 import verifiers as vf
+import json
 
 SYSTEM_PROMPT = """You are given a user query and several candidate documents (DOC_1, DOC_2, ...), each containing an image.
 Rank the documents from most to least relevant to the query.
@@ -23,61 +24,72 @@ class RerankerVLEnv(vf.SingleTurnEnv):
     """
     Visual-Language Reranker Environment for query → images (1 positive + sampled negatives).
     """
-    def format_dataset(
-        self,
-        dataset: Dataset,
-        max_size,
-        image_db,
-        system_prompt: str | None = None,
-        images_number: int = 5,
-    ) -> Dataset:
+    def __init__(self, *args, image_db=None, max_docs=10, max_size=640, **kwargs):
+        # assign before calling super() so they're available early
+        self.image_db = image_db
+        self.max_docs = int(max_docs)
+        self.max_size = int(max_size)
 
+        print("init RerankerVLEnv")
+        print("max_docs =", self.max_docs)
+        print("image_db =", self.image_db)
+
+        # now initialize parent
+        super().__init__(*args, **kwargs)
+        
+    def format_dataset(self, dataset: Dataset, system_prompt: str | None = None, few_shot=None) -> Dataset:
+        if isinstance(dataset, dict):
+            dataset = dataset["train"]
+    
         def format_prompt_fn(query, doc_tags):
-            """Creates the conversation message structure."""
             messages = []
             if system_prompt:
                 messages.append({
                     "role": "system",
                     "content": [{"type": "text", "text": system_prompt}],
                 })
-
+    
             user_content = [{"type": "text", "text": f"User query: {query}\n\nDocuments:\n"}]
             for tag in doc_tags:
                 user_content.append({"type": "text", "text": f"{tag}:"})
                 user_content.append({"type": "image"})
-
             user_content.append({"type": "text", "text": RERANK_PROMPT})
+    
             messages.append({"role": "user", "content": user_content})
             return messages
-
+    
         def preprocess_fn(example):
             negs = example["neg_ids"]
-            sampled_negs = random.sample(negs, min(len(negs), images_number - 1))
-
+            sampled_negs = random.sample(negs, min(len(negs), self.max_docs - 1))
             doc_ids = [example["pos_id"]] + sampled_negs
             random.shuffle(doc_ids)
-
             doc_tags = [f"DOC_{i+1}" for i in range(len(doc_ids))]
-
+    
             images = []
             for idx in doc_ids:
-                img = Image.open(image_db[idx]).convert("RGB")
-                img = smart_resize(img,max_size)
+                img = self.image_db["corpus"][idx]["image"]
+                if not isinstance(img, Image.Image):
+                    img = Image.open(img)
+                img = img.convert("RGB")
+                img = smart_resize(img, self.max_size)
                 images.append(img)
-
+    
             pos_idx = doc_ids.index(example["pos_id"])
             answer = doc_tags[pos_idx]
             messages = format_prompt_fn(example["query"], doc_tags)
-
+    
             return {
-                "prompt": messages,
+                "prompt": json.dumps(messages),  # or just messages if trainer supports structured prompts
                 "answer": answer,
                 "images": images,
                 "doc_tags": doc_tags,
                 "doc_ids": doc_ids,
             }
+    
+        formatted = dataset.map(preprocess_fn)
+        print("Columns in formatted dataset:", formatted.column_names)
+        return formatted
 
-        return dataset.map(preprocess_fn)
 
 def reward_ndcg(parser, completion, doc_tags, ground_truth_tag):
     """
@@ -157,8 +169,8 @@ def load_environment(
     max_size=640,
     **kwargs
 ) -> vf.Environment:
-    dataset = load_dataset(dataset_name, split=split)
-    image_db = load_dataset(dataset_name, split="corpus")
+    dataset = load_dataset(dataset_name, "train")
+    image_db = load_dataset(dataset_name, "corpus")
     if size:
         dataset = dataset.select(range(size))
 
