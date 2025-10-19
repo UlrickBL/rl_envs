@@ -82,8 +82,8 @@ class RerankerVLEnv(vf.SingleTurnEnv):
                 "prompt": messages,
                 "answer": answer,
                 "images": images,
-                "doc_tags": doc_tags,
-                "doc_ids": doc_ids,
+                "info" : {"doc_tags": doc_tags,
+                        "doc_ids": doc_ids,}
             }
     
         formatted = dataset.map(preprocess_fn)
@@ -91,7 +91,7 @@ class RerankerVLEnv(vf.SingleTurnEnv):
         return formatted
 
 
-def reward_ndcg(parser, completion, doc_tags, ground_truth_tag):
+def reward_ndcg(parser, completion, answer):
     """
     Compute NDCG (Normalized Discounted Cumulative Gain) for predicted ranking.
     - completion: model output (should be a Python list of DOC_X strings)
@@ -103,12 +103,12 @@ def reward_ndcg(parser, completion, doc_tags, ground_truth_tag):
             pred = eval(pred)
         if not isinstance(pred, list):
             return 0.0
-        pred = [x.strip() for x in pred if x in doc_tags]
+        pred = [x.strip() for x in pred]
     except Exception:
         return 0.0
     if not pred:
         return 0.0
-    rel = [1.0 if doc == ground_truth_tag else 0.0 for doc in pred]
+    rel = [1.0 if doc == answer else 0.0 for doc in pred]
     def dcg(scores):
         return sum(s / np.log2(i + 2) for i, s in enumerate(scores))
     ideal = sorted(rel, reverse=True)
@@ -140,7 +140,7 @@ def reward_parseable_list_only(parser, completion, *args, **kwargs):
         return 0.0
 
 
-def reward_valid_doc_tags(parser, completion, doc_tags, *args, **kwargs):
+def reward_valid_doc_tags(parser, completion, state, *args, **kwargs):
     """
     Reward = 1 if list contains exactly the same DOC_X tags (no duplicates, no missing),
     and the count matches the number of images.
@@ -155,7 +155,7 @@ def reward_valid_doc_tags(parser, completion, doc_tags, *args, **kwargs):
     except Exception:
         return 0.0
 
-    if set(pred) == set(doc_tags) and len(pred) == len(doc_tags):
+    if set(pred) == set(state["info"]["doc_tags"]) and len(pred) == len(state["info"]["doc_tags"]):
         return 1.0
     else:
         return 0.0
