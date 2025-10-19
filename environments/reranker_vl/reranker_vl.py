@@ -79,7 +79,7 @@ class RerankerVLEnv(vf.SingleTurnEnv):
             messages = format_prompt_fn(example["query"], doc_tags)
     
             return {
-                "prompt": json.dumps(messages),  # or just messages if trainer supports structured prompts
+                "prompt": messages,
                 "answer": answer,
                 "images": images,
                 "doc_tags": doc_tags,
