@@ -11,7 +11,7 @@ processor = AutoProcessor.from_pretrained(model_name)
 model.gradient_checkpointing_enable()
 print("model loaded")
 
-vf_env = vf.load_environment(env_id="reranker-vl",max_docs="5")
+vf_env = vf.load_environment(env_id="reranker-vl",max_docs="4",max_size=400)
 
 print("env loaded")
 
