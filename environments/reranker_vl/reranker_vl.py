@@ -1,4 +1,5 @@
 import random
+import re
 import numpy as np
 from PIL import Image
 from datasets import Dataset, load_dataset
@@ -91,41 +92,58 @@ class RerankerVLEnv(vf.SingleTurnEnv):
         return formatted
 
 
-def reward_ndcg(parser, completion, answer):
+def parse_doc_list_robust(completion):
     """
-    Compute NDCG (Normalized Discounted Cumulative Gain) for predicted ranking.
+    Robustly parses a string completion into a list of document strings.
+    Handles both quoted ('DOC_X') and unquoted (DOC_X) entries.
+    """
+    completion = completion.strip()
+    if not (completion.startswith("[") and completion.endswith("]")):
+        return None
+    try:
+        content = completion[completion.index('[') + 1: completion.rindex(']')]
+    except ValueError:
+        return None
+    items = re.findall(r"[\w-]+", content) 
+    parsed_list = [item for item in items if item]
+    return parsed_list
+
+def reward_mrr(parser, completion, answer):
+    """
+    Compute MRR (Mean Reciprocal Rank) for predicted ranking.
     - completion: model output (should be a Python list of DOC_X strings)
-    - ground_truth_tag: the correct DOC_X label (e.g. "DOC_3")
+    - answer: the correct DOC_X label (e.g. "DOC_3")
     """
     try:
-        pred = completion
+        pred = parser.parse_answer(completion)
         if isinstance(pred, str):
-            pred = eval(pred)
+            pred = parse_doc_list_robust(pred)
         if not isinstance(pred, list):
             return 0.0
         pred = [x.strip() for x in pred]
     except Exception:
         return 0.0
+
     if not pred:
         return 0.0
-    rel = [1.0 if doc == answer else 0.0 for doc in pred]
-    def dcg(scores):
-        return sum(s / np.log2(i + 2) for i, s in enumerate(scores))
-    ideal = sorted(rel, reverse=True)
-    ndcg = dcg(rel) / (dcg(ideal) + 1e-8)
-    return float(ndcg)
+    try:
+        rank = pred.index(answer)
+        return 1.0 / (rank + 1)
+    except ValueError:
+        return 0.0
 
 
 def reward_parseable_list_only(parser, completion, *args, **kwargs):
     """
-    Reward = 1 if output is exactly a parsable list and nothing else.
-    E.g. "[DOC_1, DOC_3, DOC_2]" → ✅
-    Anything else (extra text, explanation, malformed) → 0.
+    Reward is 1 if output is exactly a parsable list and nothing else.
+    Anything else (extra text, explanation, malformed) is 0.
     """
     try:
-        pred = completion
+        pred = parser.parse_answer(completion)
         if isinstance(pred, str):
-            pred_eval = eval(pred)
+            pred_eval = parse_doc_list_robust(pred)
+            if pred_eval == None :
+                return 0
         else:
             pred_eval = pred
         completion_stripped = completion.strip()
@@ -146,9 +164,9 @@ def reward_valid_doc_tags(parser, completion, state, *args, **kwargs):
     and the count matches the number of images.
     """
     try:
-        pred = completion
+        pred = parser.parse_answer(completion)
         if isinstance(pred, str):
-            pred = eval(pred)
+            pred = parse_doc_list_robust(pred)
         if not isinstance(pred, list):
             return 0.0
         pred = [x.strip() for x in pred]
@@ -159,6 +177,7 @@ def reward_valid_doc_tags(parser, completion, state, *args, **kwargs):
         return 1.0
     else:
         return 0.0
+
 
 
 def load_environment(
@@ -176,16 +195,19 @@ def load_environment(
 
     rubric = vf.Rubric(
         funcs=[
-            reward_ndcg,
+            reward_mrr,
             reward_parseable_list_only,
             reward_valid_doc_tags
         ],
         weights=[0.6, 0.2, 0.2]
     )
 
+    parser = vf.Parser()
+    
     return RerankerVLEnv(
         dataset=dataset,
         system_prompt=SYSTEM_PROMPT,
+        parser=parser,
         rubric=rubric,
         image_db=image_db,
         max_docs=max_docs,
