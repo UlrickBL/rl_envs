@@ -132,6 +132,27 @@ def reward_mrr(parser, completion, answer):
     except ValueError:
         return 0.0
 
+def reward_smooth_rank(parser, completion, answer, alpha=2.0):
+    """
+    Stronger bias towards 1 rather than MRR reward
+    rank 0 = 1.0; rank 1 = exp(-alpha)
+    """
+    import math
+    try:
+        pred = parser.parse_answer(completion)
+        if isinstance(pred, str):
+            pred = parse_doc_list_robust(pred)
+        if not isinstance(pred, list) or not pred:
+            return 0.0
+        pred = [x.strip() for x in pred]
+    except Exception:
+        return 0.0
+
+    try:
+        rank = pred.index(answer)
+        return math.exp(-alpha * rank)
+    except ValueError:
+        return 0.0
 
 def reward_parseable_list_only(parser, completion, *args, **kwargs):
     """
@@ -195,11 +216,10 @@ def load_environment(
 
     rubric = vf.Rubric(
         funcs=[
-            reward_mrr,
-            reward_parseable_list_only,
+            reward_smooth_rank,
             reward_valid_doc_tags
         ],
-        weights=[0.6, 0.2, 0.2]
+        weights=[0.8, 0.2]
     )
 
     parser = vf.Parser()
