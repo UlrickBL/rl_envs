@@ -1,5 +1,6 @@
 import verifiers as vf
 from transformers import Qwen3VLForConditionalGeneration, AutoTokenizer, AutoProcessor
+import wandb
 
 print("running verifier")
 model_name = "Qwen/Qwen3-VL-2B-Instruct"
@@ -17,19 +18,22 @@ print("env loaded")
 
 args = vf.grpo_defaults(run_name="reranker-vl")
 args.per_device_train_batch_size = 8
-args.num_generations = 16
-args.gradient_accumulation_steps = 4
+args.num_generations = 8
+args.gradient_accumulation_steps = 8
 args.max_steps = 1000
 args.eval_strategy = "steps"
-args.eval_steps = 10
+args.eval_steps = 50
 args.max_tokens = 1024
 args.vllm_server_port= 8000
 args.fp16 = True
-args.temperature = 0.5
-args.learning_rate = 3e-6
+args.temperature = 0.7
+args.learning_rate = 3e-5
 args.lr_scheduler_type = "cosine"
-args.warmup_steps = 10 
-args.beta = 0.001
+args.warmup_steps = 30 
+args.beta = 0.01
+args.save_strategy = "steps"
+args.save_steps = 50
+args.output_dir = "outputs/reranker-vl"
 
 trainer = vf.GRPOTrainer(
     model=model,
