@@ -93,12 +93,6 @@ def reward_answer(parser, completion, answer):
     
     return reward
 
-def reward_parseable(parser, completion, state, *args, **kwargs):
-    pred = parse_detection_list(completion)
-    if pred is None:
-        return 0.0
-    return 1.0
-
 
 def load_environment(num_examples=None,split="train",lang=None,size=1000, **kwargs) -> vf.Environment:
     '''
