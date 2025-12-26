@@ -6,6 +6,13 @@ from datasets import load_dataset
 from datasets import Dataset
 from PIL import Image
 
+def smart_resize(image: Image.Image, max_size=640): 
+    """Resize proportionally so the longest side equals max_size.""" 
+    w, h = image.size 
+    scale = max_size / max(w, h) 
+    new_size = (int(w * scale), int(h * scale)) 
+    return image.resize(new_size, Image.LANCZOS)
+
 def compute_iou(boxA, boxB):
     """Compute IoU via Hungarian algorithm to match bounding box with different orders
     """
@@ -98,7 +105,7 @@ class BBoxEnv(vf.SingleTurnEnv):
         self.max_size = max_size
         super().__init__(dataset=dataset, *args, **kwargs)
 
-    def format_dataset(self, dataset: Dataset, category="window"):
+    def format_dataset(self, dataset: Dataset,system_prompt: str | None = None, category="window"):
         def preprocess_fn(example):
             img = example["image"]
             if not isinstance(img, Image.Image):
@@ -106,7 +113,7 @@ class BBoxEnv(vf.SingleTurnEnv):
             img = img.convert("RGB")
             img = smart_resize(img, self.max_size)
 
-            gt = example["coord"]  # bounding box list
+            gt = example["ground_truth"]  # bounding box list
 
             prompt = [{
                 "role": "user",
