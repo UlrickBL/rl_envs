@@ -126,11 +126,11 @@ class BBoxEnv(vf.SingleTurnEnv):
         return dataset.map(preprocess_fn)
 
 
-def load_bbox_env(dataset, split="train", **kwargs):
+def load_environment(split="train", **kwargs):
     parser = vf.Parser()
     
     
-    dataset = load_dataset("ulrickBL/archi_bbox",split=split) # WIP for the dataset
+    dataset = load_dataset("UlrickBL/elevation-dataset",split=split) # WIP for the dataset
     
     rubric = vf.Rubric(
         funcs=[
