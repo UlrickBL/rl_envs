@@ -1,11 +1,8 @@
 import verifiers as vf
 import json
 from scipy.optimize import linear_sum_assignment
-import verifiers as vf
-from datasets import load_dataset
-from datasets import Dataset
+from datasets import load_dataset,Dataset
 from PIL import Image
-from scipy.optimize import linear_sum_assignment
 import numpy as np
 import re
 
