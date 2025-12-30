@@ -160,7 +160,7 @@ class BBoxEnv(vf.SingleTurnEnv):
                         "type": "text",
                         "text": f'locate every instance that belongs to the following categories: {category}. '
                                 f'For each window, report bbox coordinates, in JSON format like this: '
-                                f'{{"bbox_2d": [x1, y1, x2, y2], "label": "{category}"}}'
+                                f'{{"bbox_2d": [x1, y1, x2, y2], "label": "window"}}'
                     },
                     {"type": "image"}
                 ]
