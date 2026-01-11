@@ -1,9 +1,9 @@
 import verifiers as vf
-from transformers import Qwen3_VLForConditionalGeneration, AutoProcessor
+from transformers import Qwen3VLForConditionalGeneration, AutoProcessor
 
 print("running verifier")
 model_name = "Qwen/Qwen3-VL-2B-Instruct"
-model = Qwen3_VLForConditionalGeneration.from_pretrained(
+model = Qwen3VLForConditionalGeneration.from_pretrained(
     model_name, torch_dtype="auto", device_map="auto"
 )
 processor = AutoProcessor.from_pretrained(model_name)
@@ -11,7 +11,7 @@ processor = AutoProcessor.from_pretrained(model_name)
 model.gradient_checkpointing_enable()
 print("model loaded")
 
-vf_env = vf.load_environment(env_id="ulrick-bl/object-detection-vl")
+vf_env = vf.load_environment(env_id="object-detection-vl")
 
 print("env loaded")
 

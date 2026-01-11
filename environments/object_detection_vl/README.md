@@ -6,14 +6,14 @@
 - **Tags**: Vision, Bounding box, Object detection, Bbox
 
 ### Datasets
-- **Primary dataset(s)**: Currently working on it. Custom dataset of images with annotated 2D bounding boxes  
+- **Primary dataset(s)**: UlrickBL/elevation-dataset. Custom dataset of images with annotated 2D bounding boxes  
   Format example:
   ```json
   [
     {"bbox_2d": [607, 754, 639, 810], "label": "window"},
     {"bbox_2d": [123, 229, 155, 285], "label": "window"}
   ]
-- **Split sizes**:
+- **Split sizes**: 22 for now (working on synth data)
 
 ### Task
 - **Type**: single-turn
