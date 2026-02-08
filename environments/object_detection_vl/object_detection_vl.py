@@ -1,11 +1,8 @@
 import verifiers as vf
 import json
 from scipy.optimize import linear_sum_assignment
-import verifiers as vf
-from datasets import load_dataset
-from datasets import Dataset
+from datasets import load_dataset,Dataset
 from PIL import Image
-from scipy.optimize import linear_sum_assignment
 import numpy as np
 import re
 
@@ -210,7 +207,7 @@ class BBoxEnv(vf.SingleTurnEnv):
                         "type": "text",
                         "text": f'locate every instance that belongs to the following categories: {category}. '
                                 f'For each window, report bbox coordinates, in JSON format like this: '
-                                f'{{"bbox_2d": [x1, y1, x2, y2], "label": "{category}"}}'
+                                f'{{"bbox_2d": [x1, y1, x2, y2], "label": "window"}}'
                     },
                     {"type": "image"}
                 ]
