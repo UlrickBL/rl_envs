@@ -14,8 +14,7 @@ def smart_resize(image: Image.Image, max_size=640):
     return image.resize(new_size, Image.LANCZOS)
     
 def compute_iou(boxA, boxB):
-    """Compute IoU via Hungarian algorithm to match bounding box with different orders
-    """
+    """Compute IoU"""
     xA = max(boxA[0], boxB[0])
     yA = max(boxA[1], boxB[1])
     xB = min(boxA[2], boxB[2])
@@ -137,6 +136,54 @@ def reward_matching(parser, completion, state, *args, **kwargs):
     return float(np.mean(scores))
 
 
+def reward_geometry_smooth_hungarian(parser, completion, state, *args, **kwargs):
+    """
+    Calculates spatial accuracy using Hungarian matching and Smooth IoU (distance hints).
+    """
+    gt = parse_ground_truth(state["info"]["gt"],parser)
+    if gt is None or len(gt) == 0:
+        return 0.0
+
+    pred = parse_prediction(completion,parser)
+    if pred is None or len(pred) == 0:
+        return 0.0
+
+    num_preds = len(pred)
+    num_gts = len(gt)
+    
+    cost_matrix = np.zeros((num_preds, num_gts))
+    
+    for i, p in enumerate(pred):
+        p_bbox = p["bbox"]
+        p_center = np.array([(p_bbox[0] + p_bbox[2]) / 2, (p_bbox[1] + p_bbox[3]) / 2])
+        
+        for j, g in enumerate(gt):
+            g_bbox = g["bbox"]
+            g_center = np.array([(g_bbox[0] + g_bbox[2]) / 2, (g_bbox[1] + g_bbox[3]) / 2])
+            
+            iou = compute_iou(p_bbox, g_bbox)
+            
+            dist = np.linalg.norm(p_center - g_center)
+            distance_hint = np.exp(-dist / 200) 
+            
+            label_match = 1.0 if p["label"] == g["label"] else 0.3
+            
+            # Combine: prioritize IoU, but use distance_hint as a baseline
+            combined_geom = max(iou, 0.1 * distance_hint)
+            
+            score = (0.8 * combined_geom) + (0.2 * label_match)
+            cost_matrix[i, j] = 1.0 - score 
+
+    row_ind, col_ind = linear_sum_assignment(cost_matrix)
+    matched_score_sum = sum(1.0 - cost_matrix[row_ind[k], col_ind[k]] for k in range(len(row_ind)))
+    
+    # Penalizes both hallucinations and missed objects
+    geometry_score = matched_score_sum / max(num_preds, num_gts)
+    
+    reward = float(np.clip(geometry_score, 0.0, 1.0))
+        
+    return reward
+
 class BBoxEnv(vf.SingleTurnEnv):
 
     def __init__(self, dataset, *args, max_size=640, **kwargs):
@@ -178,14 +225,13 @@ class BBoxEnv(vf.SingleTurnEnv):
 
 def load_environment(split="train", **kwargs):
     parser = vf.Parser()
-    dataset = load_dataset("UlrickBL/elevation-dataset",split=split) # WIP for the dataset
+    dataset = load_dataset('UlrickBL/elevation-dataset-synthetic-v2',split=split).shuffle(seed=42)
     rubric = vf.Rubric(
         funcs=[
             reward_parseable,
-            reward_object_count,
-            reward_matching,
+            reward_geometry_smooth_hungarian
         ],
-        weights=[0.2, 0.2, 0.6]
+        weights=[0.2, 0.8]
     )
 
     return BBoxEnv(

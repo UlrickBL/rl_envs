@@ -16,23 +16,20 @@ vf_env = vf.load_environment(env_id="object-detection-vl")
 print("env loaded")
 
 args = vf.grpo_defaults(run_name="object-detection-vl")
-args.per_device_train_batch_size = 8
-args.num_generations = 8
-args.gradient_accumulation_steps = 8
+args.per_device_train_batch_size = 3
+args.num_generations = 15
+args.gradient_accumulation_steps = 10
 args.max_steps = 1000
 args.eval_strategy = "steps"
-args.eval_steps = 50
-args.max_tokens = 1024
+args.eval_steps = 2
+args.max_tokens = 2048
 args.vllm_server_port= 8000
 args.fp16 = True
-args.temperature = 0.7
-args.learning_rate = 3e-5
+args.temperature = 1.0
+args.learning_rate = 1e-4
 args.lr_scheduler_type = "cosine"
-args.warmup_steps = 30 
-args.beta = 0.01
-args.save_strategy = "steps"
-args.save_steps = 25
-args.output_dir = "outputs/bbox_model"
+args.warmup_steps = 30  
+args.beta = 0.02
 
 trainer = vf.GRPOTrainer(
     model=model,
